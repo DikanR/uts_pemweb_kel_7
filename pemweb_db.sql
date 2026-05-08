@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 08, 2026 at 02:11 PM
+-- Generation Time: May 09, 2026 at 01:46 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -20,6 +20,28 @@ SET time_zone = "+00:00";
 --
 -- Database: `pemweb_db`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `prodi_tbl`
+--
+
+CREATE TABLE `prodi_tbl` (
+  `prodi_id` int(11) NOT NULL,
+  `nama_prodi` varchar(255) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `prodi_tbl`
+--
+
+INSERT INTO `prodi_tbl` (`prodi_id`, `nama_prodi`) VALUES
+(1, 'Ilmu Komputer'),
+(2, 'Fisika'),
+(3, 'Matematika'),
+(4, 'Biologi'),
+(5, 'Statistika');
 
 -- --------------------------------------------------------
 
@@ -49,11 +71,18 @@ INSERT INTO `user_tbl` (`user_id`, `email`, `password`, `prodi_id`) VALUES
 (18, 'gina.marlina@gmail.com', '12345678', 2),
 (19, 'hendra.wijaya@gmail.com', '12345678', 3),
 (20, 'intan.permata@gmail.com', '12345678', 4),
-(21, 'joko.susilo@gmail.com', '12345678', 5);
+(21, 'joko.susilo@gmail.com', '12345678', 5),
+(22, 'adwadwa@dwad.cs', '12345678', 4);
 
 --
 -- Indexes for dumped tables
 --
+
+--
+-- Indexes for table `prodi_tbl`
+--
+ALTER TABLE `prodi_tbl`
+  ADD PRIMARY KEY (`prodi_id`);
 
 --
 -- Indexes for table `user_tbl`
@@ -67,10 +96,16 @@ ALTER TABLE `user_tbl`
 --
 
 --
+-- AUTO_INCREMENT for table `prodi_tbl`
+--
+ALTER TABLE `prodi_tbl`
+  MODIFY `prodi_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
 -- AUTO_INCREMENT for table `user_tbl`
 --
 ALTER TABLE `user_tbl`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
