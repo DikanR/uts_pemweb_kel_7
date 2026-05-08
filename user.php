@@ -108,6 +108,25 @@ if ($error === '') {
 			--bs-table-border-color: rgba(255, 255, 255, 0.15);
 		}
 
+		/* Make tables vertically scrollable with a sticky header */
+		.table-responsive {
+			max-height: 360px; /* adjust as needed */
+			overflow-y: auto;
+		}
+
+		.table-responsive table {
+			margin-bottom: 0; /* remove extra space under table */
+		}
+
+		.table-responsive thead th {
+			position: sticky;
+			top: 0;
+			z-index: 2;
+			background: rgba(255, 255, 255, 0.06);
+			backdrop-filter: blur(6px);
+			color: #fff;
+		}
+
 		.form-control,
 		.form-select {
 			background: rgba(255, 255, 255, 0.12);

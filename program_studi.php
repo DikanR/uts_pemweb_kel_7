@@ -95,6 +95,25 @@ if ($error === '') {
 			--bs-table-border-color: rgba(255, 255, 255, 0.15);
 		}
 
+		/* Make tables vertically scrollable with a sticky header */
+		.table-responsive {
+			max-height: 360px; /* adjust as needed */
+			overflow-y: auto;
+		}
+
+		.table-responsive table {
+			margin-bottom: 0; /* remove extra space under table */
+		}
+
+		.table-responsive thead th {
+			position: sticky;
+			top: 0;
+			z-index: 2;
+			background: rgba(255, 255, 255, 0.06);
+			backdrop-filter: blur(6px);
+			color: #fff;
+		}
+
 		.form-control {
 			background: rgba(255, 255, 255, 0.12);
 			border: 1px solid rgba(255, 255, 255, 0.18);
@@ -214,7 +233,7 @@ if ($error === '') {
 							<form method="post" action="program_studi.php">
 								<div class="mb-4">
 									<label for="nama_prodi" class="form-label">Nama Prodi</label>
-									<input type="text" class="form-control form-control-lg" id="nama_prodi" name="nama_prodi" value="<?php echo htmlspecialchars($namaProdiValue, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Contoh: Teknik Informatika" required>
+									<input type="text" class="form-control form-control-lg" id="nama_prodi" name="nama_prodi" value="<?php echo htmlspecialchars($namaProdiValue, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Contoh: Statistika" required>
 								</div>
 
 								<div class="d-grid">
