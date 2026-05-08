@@ -155,6 +155,7 @@ if ($error === '') {
 			<span class="navbar-brand mb-0 h1">Program Studi</span>
 			<div class="ms-auto d-flex align-items-center gap-3">
 				<span class="text-secondary small">Logged in as <?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?></span>
+				<a href="profile.php" class="btn btn-outline-light btn-sm">Profile</a>
 				<a href="dashboard.php?logout=1" class="btn btn-outline-light btn-sm">Logout</a>
 			</div>
 		</div>
@@ -167,9 +168,9 @@ if ($error === '') {
 					<h5 class="mb-3">Menu</h5>
 					<ul class="nav flex-column">
 						<li class="nav-item mb-2"><a class="nav-link" href="dashboard.php">Dashboard</a></li>
-						<li class="nav-item mb-2"><a class="nav-link active" href="program_studi.php">Prodi</a></li>
+						<li class="nav-item mb-2"><a class="nav-link active" href="program_studi.php">Program Studi</a></li>
 						<li class="nav-item mb-2"><a class="nav-link" href="user.php">Users</a></li>
-						<li class="nav-item mt-3"><a class="nav-link" href="dashboard.php?logout=1">Logout</a></li>
+
 					</ul>
 				</div>
 			</aside>
