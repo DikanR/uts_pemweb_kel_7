@@ -15,10 +15,14 @@ $email = $_SESSION['email'] ?? 'User';
 
 $error = '';
 $success = isset($_GET['success']) ? 'Data user berhasil ditambahkan.' : '';
+if (isset($_GET['update'])) $success = 'Data user berhasil diperbarui.';
+if (isset($_GET['deleted'])) $success = 'Data user berhasil dihapus.';
 
 $emailValue = '';
 $passwordValue = '';
 $selectedProdiId = '';
+$editingUserId = null;
+$editingEmail = '';
 
 $conn = new mysqli($dbHost, $dbUser, $dbPassword, $dbName);
 
@@ -38,33 +42,82 @@ if ($error === '') {
 		$prodiResult->free();
 	}
 
+	if (isset($_GET['delete'])) {
+		$deleteId = intval($_GET['delete']);
+		$stmt = $conn->prepare('DELETE FROM user_tbl WHERE user_id = ?');
+		if ($stmt) {
+			$stmt->bind_param('i', $deleteId);
+			$stmt->execute();
+			$stmt->close();
+			$conn->close();
+			header('Location: user.php?deleted=1');
+			exit;
+		}
+	}
+
+	if (isset($_GET['edit'])) {
+		$editId = intval($_GET['edit']);
+		$stmt = $conn->prepare('SELECT user_id, email, password, prodi_id FROM user_tbl WHERE user_id = ?');
+		if ($stmt) {
+			$stmt->bind_param('i', $editId);
+			$stmt->execute();
+			$result = $stmt->get_result();
+			if ($row = $result->fetch_assoc()) {
+				$editingUserId = $row['user_id'];
+				$emailValue = $row['email'];
+				$passwordValue = $row['password'];
+				$selectedProdiId = $row['prodi_id'];
+				$editingEmail = $row['email'];
+			}
+			$stmt->close();
+		}
+	}
+
 	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		$emailValue = trim($_POST['email'] ?? '');
 		$passwordValue = $_POST['password'] ?? '';
 		$selectedProdiId = trim($_POST['prodi_id'] ?? '');
+		$isEditMode = isset($_POST['editing_user_id']) && $_POST['editing_user_id'] !== '';
+		$editingUserId = intval($_POST['editing_user_id'] ?? 0);
 
 		if ($emailValue === '' || $passwordValue === '' || $selectedProdiId === '') {
 			$error = 'Email, password, dan program studi wajib diisi.';
 		} else {
-			$stmt = $conn->prepare('INSERT INTO user_tbl (email, password, prodi_id) VALUES (?, ?, ?)');
-			if ($stmt) {
-				$stmt->bind_param('ssi', $emailValue, $passwordValue, $selectedProdiId);
-				if ($stmt->execute()) {
+			if ($isEditMode) {
+				$stmt = $conn->prepare('UPDATE user_tbl SET email = ?, password = ?, prodi_id = ? WHERE user_id = ?');
+				if ($stmt) {
+					$stmt->bind_param('ssii', $emailValue, $passwordValue, $selectedProdiId, $editingUserId);
+					if ($stmt->execute()) {
+						$stmt->close();
+						$conn->close();
+						header('Location: user.php?update=1');
+						exit;
+					}
+					$error = 'Gagal memperbarui data user.';
 					$stmt->close();
-					$conn->close();
-					header('Location: user.php?success=1');
-					exit;
+				} else {
+					$error = 'Terjadi kesalahan pada proses penyimpanan.';
 				}
-
-				$error = 'Gagal menambahkan data user.';
-				$stmt->close();
 			} else {
-				$error = 'Terjadi kesalahan pada proses penyimpanan.';
+				$stmt = $conn->prepare('INSERT INTO user_tbl (email, password, prodi_id) VALUES (?, ?, ?)');
+				if ($stmt) {
+					$stmt->bind_param('ssi', $emailValue, $passwordValue, $selectedProdiId);
+					if ($stmt->execute()) {
+						$stmt->close();
+						$conn->close();
+						header('Location: user.php?success=1');
+						exit;
+					}
+					$error = 'Gagal menambahkan data user.';
+					$stmt->close();
+				} else {
+					$error = 'Terjadi kesalahan pada proses penyimpanan.';
+				}
 			}
 		}
 	}
 
-	$userResult = $conn->query('SELECT u.email, u.password, p.nama_prodi FROM user_tbl u LEFT JOIN prodi_tbl p ON p.prodi_id = u.prodi_id ORDER BY u.email ASC');
+	$userResult = $conn->query('SELECT u.user_id, u.email, u.password, p.nama_prodi FROM user_tbl u LEFT JOIN prodi_tbl p ON p.prodi_id = u.prodi_id ORDER BY u.email ASC');
 	if ($userResult) {
 		while ($row = $userResult->fetch_assoc()) {
 			$users[] = $row;
@@ -225,20 +278,29 @@ if ($error === '') {
 									<th>Email</th>
 									<th>Password</th>
 									<th>Prodi</th>
+									<th class="text-center">Aksi</th>
 								</tr>
 							</thead>
 							<tbody>
 								<?php if (count($users) > 0): ?>
 									<?php foreach ($users as $user): ?>
 										<tr>
-											<td><?php echo htmlspecialchars($user['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+											<td>
+												<a href="user.php?edit=<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" class="text-light text-decoration-none user-email-link" style="cursor: pointer;">
+													<?php echo htmlspecialchars($user['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
+												</a>
+											</td>
 											<td><?php echo htmlspecialchars($user['password'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
 											<td><?php echo htmlspecialchars($user['nama_prodi'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
+											<td class="text-center">
+												<a href="user.php?edit=<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-warning me-2">Edit</a>
+												<a href="user.php?delete=<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus user ini?');">Hapus</a>
+											</td>
 										</tr>
 									<?php endforeach; ?>
 								<?php else: ?>
 									<tr>
-										<td colspan="3" class="text-center text-secondary py-4">Belum ada data user.</td>
+										<td colspan="4" class="text-center text-secondary py-4">Belum ada data user.</td>
 									</tr>
 								<?php endif; ?>
 							</tbody>
@@ -249,10 +311,14 @@ if ($error === '') {
 
 					<div class="col-12 col-lg-5">
 						<div class="card hero-glass p-4 h-100">
-							<h4 class="mb-1">Tambah User</h4>
-							<small class="text-secondary d-block mb-4">Isi data untuk menambahkan user baru</small>
+							<h4 class="mb-1"><?php echo $editingUserId !== null ? 'Edit User' : 'Tambah User'; ?></h4>
+							<small class="text-secondary d-block mb-4"><?php echo $editingUserId !== null ? 'Update data user' : 'Isi data untuk menambahkan user baru'; ?></small>
 
 							<form method="post" action="user.php">
+								<?php if ($editingUserId !== null): ?>
+									<input type="hidden" name="editing_user_id" value="<?php echo htmlspecialchars($editingUserId, ENT_QUOTES, 'UTF-8'); ?>">
+								<?php endif; ?>
+
 								<div class="mb-3">
 									<label for="email" class="form-label">Email</label>
 									<input type="email" class="form-control form-control-lg" id="email" name="email" value="<?php echo htmlspecialchars($emailValue, ENT_QUOTES, 'UTF-8'); ?>" placeholder="name@example.com" required>
@@ -275,8 +341,11 @@ if ($error === '') {
 									</select>
 								</div>
 
-								<div class="d-grid">
-									<button type="submit" class="btn btn-light btn-lg">Simpan User</button>
+								<div class="d-grid gap-2 d-flex">
+									<button type="submit" class="btn btn-light btn-lg flex-grow-1"><?php echo $editingUserId !== null ? 'Perbarui User' : 'Simpan User'; ?></button>
+									<?php if ($editingUserId !== null): ?>
+										<a href="user.php" class="btn btn-outline-secondary btn-lg">Batal</a>
+									<?php endif; ?>
 								</div>
 							</form>
 						</div>
