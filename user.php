@@ -14,9 +14,15 @@ $dbName = 'pemweb_db';
 $email = $_SESSION['email'] ?? 'User';
 
 $error = '';
-$success = isset($_GET['success']) ? 'Data user berhasil ditambahkan.' : '';
-if (isset($_GET['update'])) $success = 'Data user berhasil diperbarui.';
-if (isset($_GET['deleted'])) $success = 'Data user berhasil dihapus.';
+if (isset($_GET['success'])) {
+	$success = 'Data user berhasil ditambahkan.';
+} elseif (isset($_GET['update'])) {
+	$success = 'Data user berhasil diperbarui.';
+} elseif (isset($_GET['deleted'])) {
+	$success = 'Data user berhasil dihapus.';
+} else {
+	$success = '';
+}
 
 $emailValue = '';
 $passwordValue = '';
