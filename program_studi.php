@@ -14,9 +14,17 @@ $dbName = 'pemweb_db';
 $email = $_SESSION['email'] ?? 'User';
 
 $error = '';
-$success = isset($_GET['success']) ? 'Data program studi berhasil ditambahkan.' : '';
+$success = '';
+if (isset($_GET['success'])) {
+	$success = 'Data program studi berhasil ditambahkan.';
+} elseif (isset($_GET['update'])) {
+	$success = 'Data program studi berhasil diperbarui.';
+} elseif (isset($_GET['deleted'])) {
+	$success = 'Data program studi berhasil dihapus.';
+}
 
 $namaProdiValue = '';
+$editingProdiId = null;
 
 $conn = new mysqli($dbHost, $dbUser, $dbPassword, $dbName);
 
@@ -27,26 +35,74 @@ if ($conn->connect_error) {
 $prodiList = [];
 
 if ($error === '') {
+	if (isset($_GET['delete'])) {
+		$deleteId = intval($_GET['delete']);
+		$stmt = $conn->prepare('DELETE FROM prodi_tbl WHERE prodi_id = ?');
+		if ($stmt) {
+			$stmt->bind_param('i', $deleteId);
+			$stmt->execute();
+			$stmt->close();
+			$conn->close();
+			header('Location: program_studi.php?deleted=1');
+			exit;
+		}
+	}
+
+	if (isset($_GET['edit'])) {
+		$editId = intval($_GET['edit']);
+		$stmt = $conn->prepare('SELECT prodi_id, nama_prodi FROM prodi_tbl WHERE prodi_id = ?');
+		if ($stmt) {
+			$stmt->bind_param('i', $editId);
+			$stmt->execute();
+			$result = $stmt->get_result();
+			if ($row = $result->fetch_assoc()) {
+				$editingProdiId = $row['prodi_id'];
+				$namaProdiValue = $row['nama_prodi'];
+			}
+			$stmt->close();
+		}
+	}
+
 	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		$namaProdiValue = trim($_POST['nama_prodi'] ?? '');
+		$isEditMode = isset($_POST['editing_prodi_id']) && $_POST['editing_prodi_id'] !== '';
+		$editingProdiId = intval($_POST['editing_prodi_id'] ?? 0);
 
 		if ($namaProdiValue === '') {
 			$error = 'Nama program studi wajib diisi.';
 		} else {
-			$stmt = $conn->prepare('INSERT INTO prodi_tbl (nama_prodi) VALUES (?)');
-			if ($stmt) {
-				$stmt->bind_param('s', $namaProdiValue);
-				if ($stmt->execute()) {
-					$stmt->close();
-					$conn->close();
-					header('Location: program_studi.php?success=1');
-					exit;
-				}
+			if ($isEditMode) {
+				$stmt = $conn->prepare('UPDATE prodi_tbl SET nama_prodi = ? WHERE prodi_id = ?');
+				if ($stmt) {
+					$stmt->bind_param('si', $namaProdiValue, $editingProdiId);
+					if ($stmt->execute()) {
+						$stmt->close();
+						$conn->close();
+						header('Location: program_studi.php?update=1');
+						exit;
+					}
 
-				$error = 'Gagal menambahkan data program studi.';
-				$stmt->close();
+					$error = 'Gagal memperbarui data program studi.';
+					$stmt->close();
+				} else {
+					$error = 'Terjadi kesalahan pada proses penyimpanan.';
+				}
 			} else {
-				$error = 'Terjadi kesalahan pada proses penyimpanan.';
+				$stmt = $conn->prepare('INSERT INTO prodi_tbl (nama_prodi) VALUES (?)');
+				if ($stmt) {
+					$stmt->bind_param('s', $namaProdiValue);
+					if ($stmt->execute()) {
+						$stmt->close();
+						$conn->close();
+						header('Location: program_studi.php?success=1');
+						exit;
+					}
+
+					$error = 'Gagal menambahkan data program studi.';
+					$stmt->close();
+				} else {
+					$error = 'Terjadi kesalahan pada proses penyimpanan.';
+				}
 			}
 		}
 	}
@@ -205,6 +261,7 @@ if ($error === '') {
 										<tr>
 											<th>ID Prodi</th>
 											<th>Nama Prodi</th>
+											<th class="text-center">Aksi</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -212,12 +269,20 @@ if ($error === '') {
 											<?php foreach ($prodiList as $prodi): ?>
 												<tr>
 													<td><?php echo htmlspecialchars($prodi['prodi_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
-													<td><?php echo htmlspecialchars($prodi['nama_prodi'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
+													<td>
+														<a href="program_studi.php?edit=<?php echo htmlspecialchars($prodi['prodi_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" class="text-light text-decoration-none" style="cursor: pointer;">
+															<?php echo htmlspecialchars($prodi['nama_prodi'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
+														</a>
+													</td>
+													<td class="text-center">
+														<a href="program_studi.php?edit=<?php echo htmlspecialchars($prodi['prodi_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-warning me-2">Edit</a>
+														<a href="program_studi.php?delete=<?php echo htmlspecialchars($prodi['prodi_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus program studi ini?');">Hapus</a>
+													</td>
 												</tr>
 											<?php endforeach; ?>
 										<?php else: ?>
 											<tr>
-												<td colspan="2" class="text-center text-secondary py-4">Belum ada data program studi.</td>
+												<td colspan="3" class="text-center text-secondary py-4">Belum ada data program studi.</td>
 											</tr>
 										<?php endif; ?>
 									</tbody>
@@ -228,17 +293,24 @@ if ($error === '') {
 
 					<div class="col-12 col-lg-5">
 						<div class="card hero-glass p-4 h-100">
-							<h4 class="mb-1">Tambah Program Studi</h4>
-							<small class="text-secondary d-block mb-4">Isi nama program studi baru</small>
+							<h4 class="mb-1"><?php echo $editingProdiId !== null ? 'Edit Program Studi' : 'Tambah Program Studi'; ?></h4>
+							<small class="text-secondary d-block mb-4"><?php echo $editingProdiId !== null ? 'Update data program studi' : 'Isi nama program studi baru'; ?></small>
 
 							<form method="post" action="program_studi.php">
+								<?php if ($editingProdiId !== null): ?>
+									<input type="hidden" name="editing_prodi_id" value="<?php echo htmlspecialchars($editingProdiId, ENT_QUOTES, 'UTF-8'); ?>">
+								<?php endif; ?>
+
 								<div class="mb-4">
 									<label for="nama_prodi" class="form-label">Nama Prodi</label>
 									<input type="text" class="form-control form-control-lg" id="nama_prodi" name="nama_prodi" value="<?php echo htmlspecialchars($namaProdiValue, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Contoh: Statistika" required>
 								</div>
 
-								<div class="d-grid">
-									<button type="submit" class="btn btn-light btn-lg">Simpan Prodi</button>
+								<div class="d-grid gap-2 d-flex">
+									<button type="submit" class="btn btn-light btn-lg flex-grow-1"><?php echo $editingProdiId !== null ? 'Perbarui Prodi' : 'Simpan Prodi'; ?></button>
+									<?php if ($editingProdiId !== null): ?>
+										<a href="program_studi.php" class="btn btn-outline-secondary btn-lg">Batal</a>
+									<?php endif; ?>
 								</div>
 							</form>
 						</div>
