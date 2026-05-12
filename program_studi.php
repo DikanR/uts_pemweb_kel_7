@@ -97,36 +97,37 @@ if ($error === '') {
 			
 			if ($error === '') {
 				if ($isEditMode) {
-				$stmt = $conn->prepare('UPDATE prodi_tbl SET nama_prodi = ? WHERE prodi_id = ?');
-				if ($stmt) {
-					$stmt->bind_param('si', $namaProdiValue, $editingProdiId);
-					if ($stmt->execute()) {
-						$stmt->close();
-						$conn->close();
-						header('Location: program_studi.php?update=1');
-						exit;
-					}
+					$stmt = $conn->prepare('UPDATE prodi_tbl SET nama_prodi = ? WHERE prodi_id = ?');
+					if ($stmt) {
+						$stmt->bind_param('si', $namaProdiValue, $editingProdiId);
+						if ($stmt->execute()) {
+							$stmt->close();
+							$conn->close();
+							header('Location: program_studi.php?update=1');
+							exit;
+						}
 
-					$error = 'Gagal memperbarui data program studi.';
-					$stmt->close();
-				} else {
-					$error = 'Terjadi kesalahan pada proses penyimpanan.';
-				}
-			} else {
-				$stmt = $conn->prepare('INSERT INTO prodi_tbl (nama_prodi) VALUES (?)');
-				if ($stmt) {
-					$stmt->bind_param('s', $namaProdiValue);
-					if ($stmt->execute()) {
+						$error = 'Gagal memperbarui data program studi.';
 						$stmt->close();
-						$conn->close();
-						header('Location: program_studi.php?success=1');
-						exit;
+					} else {
+						$error = 'Terjadi kesalahan pada proses penyimpanan.';
 					}
-
-					$error = 'Gagal menambahkan data program studi.';
-					$stmt->close();
 				} else {
-					$error = 'Terjadi kesalahan pada proses penyimpanan.';
+					$stmt = $conn->prepare('INSERT INTO prodi_tbl (nama_prodi) VALUES (?)');
+					if ($stmt) {
+						$stmt->bind_param('s', $namaProdiValue);
+						if ($stmt->execute()) {
+							$stmt->close();
+							$conn->close();
+							header('Location: program_studi.php?success=1');
+							exit;
+						}
+
+						$error = 'Gagal menambahkan data program studi.';
+						$stmt->close();
+					} else {
+						$error = 'Terjadi kesalahan pada proses penyimpanan.';
+					}
 				}
 			}
 		}
