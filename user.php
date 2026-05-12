@@ -89,7 +89,32 @@ if ($error === '') {
 		if ($emailValue === '' || $passwordValue === '' || $selectedProdiId === '') {
 			$error = 'Email, password, dan program studi wajib diisi.';
 		} else {
-			if ($isEditMode) {
+			// Check if email already exists
+			$checkEmail = $conn->prepare('SELECT user_id FROM user_tbl WHERE LOWER(email) = LOWER(?)');
+			if ($checkEmail) {
+				$checkEmail->bind_param('s', $emailValue);
+				$checkEmail->execute();
+				$emailCheckResult = $checkEmail->get_result();
+				
+				if ($isEditMode) {
+					// For edit mode, check if email exists elsewhere (not current user)
+					if ($emailCheckResult->num_rows > 0) {
+						$existingUser = $emailCheckResult->fetch_assoc();
+						if ($existingUser['user_id'] != $editingUserId) {
+							$error = 'Email sudah terdaftar. Gunakan email lain.';
+						}
+					}
+				} else {
+					// For insert mode, check if email exists at all
+					if ($emailCheckResult->num_rows > 0) {
+						$error = 'Email sudah terdaftar. Gunakan email lain.';
+					}
+				}
+				$checkEmail->close();
+			}
+			
+			if ($error === '') {
+				if ($isEditMode) {
 				$stmt = $conn->prepare('UPDATE user_tbl SET email = ?, password = ?, prodi_id = ? WHERE user_id = ?');
 				if ($stmt) {
 					$stmt->bind_param('ssii', $emailValue, $passwordValue, $selectedProdiId, $editingUserId);
@@ -119,6 +144,7 @@ if ($error === '') {
 				} else {
 					$error = 'Terjadi kesalahan pada proses penyimpanan.';
 				}
+			}
 			}
 		}
 	}

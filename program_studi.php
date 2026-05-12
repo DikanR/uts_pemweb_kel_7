@@ -71,7 +71,32 @@ if ($error === '') {
 		if ($namaProdiValue === '') {
 			$error = 'Nama program studi wajib diisi.';
 		} else {
-			if ($isEditMode) {
+			// Check if nama_prodi already exists
+			$checkProdi = $conn->prepare('SELECT prodi_id FROM prodi_tbl WHERE LOWER(nama_prodi) = LOWER(?)');
+			if ($checkProdi) {
+				$checkProdi->bind_param('s', $namaProdiValue);
+				$checkProdi->execute();
+				$prodiCheckResult = $checkProdi->get_result();
+				
+				if ($isEditMode) {
+					// For edit mode, check if nama_prodi exists elsewhere (not current prodi)
+					if ($prodiCheckResult->num_rows > 0) {
+						$existingProdi = $prodiCheckResult->fetch_assoc();
+						if ($existingProdi['prodi_id'] != $editingProdiId) {
+							$error = 'Nama program studi sudah ada. Gunakan nama lain.';
+						}
+					}
+				} else {
+					// For insert mode, check if nama_prodi exists at all
+					if ($prodiCheckResult->num_rows > 0) {
+						$error = 'Nama program studi sudah ada. Gunakan nama lain.';
+					}
+				}
+				$checkProdi->close();
+			}
+			
+			if ($error === '') {
+				if ($isEditMode) {
 				$stmt = $conn->prepare('UPDATE prodi_tbl SET nama_prodi = ? WHERE prodi_id = ?');
 				if ($stmt) {
 					$stmt->bind_param('si', $namaProdiValue, $editingProdiId);

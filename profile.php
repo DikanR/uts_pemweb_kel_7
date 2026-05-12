@@ -69,9 +69,9 @@ if ($error === '') {
 		// Validate inputs
 		if ($newEmail === '') {
 			$error = 'Email wajib diisi.';
-		} elseif ($newEmail !== $email) {
+		} elseif (strtolower($newEmail) !== strtolower($email)) {
 			// Check if new email already exists
-			$checkStmt = $conn->prepare('SELECT email FROM user_tbl WHERE email = ? AND email != ?');
+			$checkStmt = $conn->prepare('SELECT email FROM user_tbl WHERE LOWER(email) = LOWER(?) AND LOWER(email) != LOWER(?)');
 			if ($checkStmt) {
 				$checkStmt->bind_param('ss', $newEmail, $email);
 				$checkStmt->execute();
