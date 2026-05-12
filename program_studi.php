@@ -133,6 +133,11 @@ if ($error === '') {
 		}
 	}
 
+	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+		$editingProdiId = null;
+		$namaProdiValue = '';
+	}
+
 	$prodiResult = $conn->query('SELECT prodi_id, nama_prodi FROM prodi_tbl ORDER BY prodi_id ASC');
 	if ($prodiResult) {
 		while ($row = $prodiResult->fetch_assoc()) {

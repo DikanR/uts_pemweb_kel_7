@@ -149,6 +149,13 @@ if ($error === '') {
 		}
 	}
 
+	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+		$editingUserId = null;
+		$emailValue = '';
+		$passwordValue = '';
+		$selectedProdiId = '';
+	}
+
 	$userResult = $conn->query('SELECT u.user_id, u.email, u.password, p.nama_prodi FROM user_tbl u LEFT JOIN prodi_tbl p ON p.prodi_id = u.prodi_id ORDER BY u.email ASC');
 	if ($userResult) {
 		while ($row = $userResult->fetch_assoc()) {
