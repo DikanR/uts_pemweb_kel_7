@@ -158,6 +158,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			color: #fff;
 		}
 
+		.login-card .input-group .form-control {
+			border-top-right-radius: 0;
+			border-bottom-right-radius: 0;
+		}
+
+		.login-card .input-group .btn {
+			border-color: rgba(255, 255, 255, 0.22);
+			color: #fff;
+			border-top-left-radius: 0;
+			border-bottom-left-radius: 0;
+		}
+
+		.login-card .input-group .btn:hover {
+			background: rgba(255, 255, 255, 0.16);
+			color: #fff;
+		}
+
 		.login-card .btn-primary {
 			border: 0;
 			border-radius: 1rem;
@@ -210,13 +227,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 							<div class="mb-3">
 								<label for="password" class="form-label">Password</label>
-								<input
-									type="password"
-									class="form-control form-control-lg"
-									id="password"
-									name="password"
-									placeholder="Enter password"
-									required>
+								<div class="input-group input-group-lg">
+									<input
+										type="password"
+										class="form-control"
+										id="password"
+										name="password"
+										placeholder="Enter password"
+										required>
+									<button class="btn btn-outline-light toggle-password" type="button" data-target="password">Lihat</button>
+								</div>
 							</div>
 
 							<div class="d-grid">
@@ -234,5 +254,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	</main>
 
 	<script src="js/bootstrap.bundle.min.js"></script>
+	<script>
+		document.querySelectorAll('.toggle-password').forEach(function (button) {
+			button.addEventListener('click', function () {
+				var target = document.getElementById(button.getAttribute('data-target'));
+				if (!target) {
+					return;
+				}
+				if (target.type === 'password') {
+					target.type = 'text';
+					button.textContent = 'Sembunyikan';
+				} else {
+					target.type = 'password';
+					button.textContent = 'Lihat';
+				}
+			});
+		});
+	</script>
 </body>
 </html>

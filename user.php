@@ -27,8 +27,6 @@ if (isset($_GET['success'])) {
 $emailValue = '';
 $passwordValue = '';
 $selectedProdiId = '';
-$editingUserId = null;
-$editingEmail = '';
 
 $conn = new mysqli($dbHost, $dbUser, $dbPassword, $dbName);
 
@@ -61,33 +59,18 @@ if ($error === '') {
 		}
 	}
 
-	if (isset($_GET['edit'])) {
-		$editId = intval($_GET['edit']);
-		$stmt = $conn->prepare('SELECT user_id, email, password, prodi_id FROM user_tbl WHERE user_id = ?');
-		if ($stmt) {
-			$stmt->bind_param('i', $editId);
-			$stmt->execute();
-			$result = $stmt->get_result();
-			if ($row = $result->fetch_assoc()) {
-				$editingUserId = $row['user_id'];
-				$emailValue = $row['email'];
-				$passwordValue = $row['password'];
-				$selectedProdiId = $row['prodi_id'];
-				$editingEmail = $row['email'];
-			}
-			$stmt->close();
-		}
-	}
-
 	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		$emailValue = trim($_POST['email'] ?? '');
 		$passwordValue = $_POST['password'] ?? '';
+		$confirmPasswordValue = $_POST['confirm_password'] ?? '';
 		$selectedProdiId = trim($_POST['prodi_id'] ?? '');
 		$isEditMode = isset($_POST['editing_user_id']) && $_POST['editing_user_id'] !== '';
-		$editingUserId = intval($_POST['editing_user_id'] ?? 0);
+		$editingUserId = $isEditMode ? intval($_POST['editing_user_id']) : 0;
 
-		if ($emailValue === '' || $passwordValue === '' || $selectedProdiId === '') {
+		if ($emailValue === '' || $passwordValue === '' || $confirmPasswordValue === '' || $selectedProdiId === '') {
 			$error = 'Email, password, dan program studi wajib diisi.';
+		} elseif ($passwordValue !== $confirmPasswordValue) {
+			$error = 'Password dan ulangi password harus sama.';
 		} else {
 			// Check if email already exists
 			$checkEmail = $conn->prepare('SELECT user_id FROM user_tbl WHERE LOWER(email) = LOWER(?)');
@@ -149,14 +132,7 @@ if ($error === '') {
 		}
 	}
 
-	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-		$editingUserId = null;
-		$emailValue = '';
-		$passwordValue = '';
-		$selectedProdiId = '';
-	}
-
-	$userResult = $conn->query('SELECT u.user_id, u.email, u.password, p.nama_prodi FROM user_tbl u LEFT JOIN prodi_tbl p ON p.prodi_id = u.prodi_id ORDER BY u.email ASC');
+	$userResult = $conn->query('SELECT u.user_id, u.email, u.password, u.prodi_id, p.nama_prodi FROM user_tbl u LEFT JOIN prodi_tbl p ON p.prodi_id = u.prodi_id ORDER BY u.email ASC');
 	if ($userResult) {
 		while ($row = $userResult->fetch_assoc()) {
 			$users[] = $row;
@@ -258,6 +234,10 @@ if ($error === '') {
 			background: rgba(255,255,255,0.03);
 			border-radius: 0.5rem;
 		}
+
+		.modal-content.hero-glass {
+			background: rgba(18, 14, 36, 0.92);
+		}
 	</style>
 </head>
 <body>
@@ -288,14 +268,17 @@ if ($error === '') {
 
 			<section class="col-12 col-md-9">
 				<div class="row g-4">
-					<div class="col-12 col-lg-7">
+					<div class="col-12">
 						<div class="card hero-glass p-4 h-100">
 					<div class="d-flex justify-content-between align-items-center mb-3">
 						<div>
 							<h4 class="mb-1">Data User</h4>
 							<small class="text-secondary">Daftar user dari database</small>
 						</div>
-						<div class="text-secondary small"><?php echo count($users); ?> data</div>
+						<div class="d-flex align-items-center gap-2">
+							<div class="text-secondary small"><?php echo count($users); ?> data</div>
+							<button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#userModal">Tambah User</button>
+						</div>
 					</div>
 
 					<?php if ($success !== ''): ?>
@@ -325,14 +308,14 @@ if ($error === '') {
 									<?php foreach ($users as $user): ?>
 										<tr>
 											<td>
-												<a href="user.php?edit=<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" class="text-light text-decoration-none user-email-link" style="cursor: pointer;">
+												<button type="button" class="btn btn-link text-light text-decoration-none p-0" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#editUserModal<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>">
 													<?php echo htmlspecialchars($user['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
-												</a>
+												</button>
 											</td>
 											<td><?php echo htmlspecialchars($user['password'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
 											<td><?php echo htmlspecialchars($user['nama_prodi'] ?? '-', ENT_QUOTES, 'UTF-8'); ?></td>
 											<td class="text-center">
-												<a href="user.php?edit=<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-warning me-2">Edit</a>
+												<button type="button" class="btn btn-sm btn-outline-warning me-2" data-bs-toggle="modal" data-bs-target="#editUserModal<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>">Edit</button>
 												<a href="user.php?delete=<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus user ini?');">Hapus</a>
 											</td>
 										</tr>
@@ -347,53 +330,136 @@ if ($error === '') {
 					</div>
 						</div>
 					</div>
-
-					<div class="col-12 col-lg-5">
-						<div class="card hero-glass p-4 h-100">
-							<h4 class="mb-1"><?php echo $editingUserId !== null ? 'Edit User' : 'Tambah User'; ?></h4>
-							<small class="text-secondary d-block mb-4"><?php echo $editingUserId !== null ? 'Update data user' : 'Isi data untuk menambahkan user baru'; ?></small>
-
-							<form method="post" action="user.php">
-								<?php if ($editingUserId !== null): ?>
-									<input type="hidden" name="editing_user_id" value="<?php echo htmlspecialchars($editingUserId, ENT_QUOTES, 'UTF-8'); ?>">
-								<?php endif; ?>
-
-								<div class="mb-3">
-									<label for="email" class="form-label">Email</label>
-									<input type="email" class="form-control form-control-lg" id="email" name="email" value="<?php echo htmlspecialchars($emailValue, ENT_QUOTES, 'UTF-8'); ?>" placeholder="name@example.com" required>
-								</div>
-
-								<div class="mb-3">
-									<label for="password" class="form-label">Password</label>
-									<input type="password" class="form-control form-control-lg" id="password" name="password" value="<?php echo htmlspecialchars($passwordValue, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Password" required>
-								</div>
-
-								<div class="mb-4">
-									<label for="prodi_id" class="form-label">Program Studi</label>
-									<select class="form-select form-select-lg" id="prodi_id" name="prodi_id" required>
-										<option value="">Pilih prodi</option>
-										<?php foreach ($prodiList as $prodi): ?>
-											<option value="<?php echo htmlspecialchars($prodi['prodi_id'], ENT_QUOTES, 'UTF-8'); ?>" <?php echo ((string)$selectedProdiId === (string)$prodi['prodi_id']) ? 'selected' : ''; ?>>
-												<?php echo htmlspecialchars($prodi['nama_prodi'], ENT_QUOTES, 'UTF-8'); ?>
-											</option>
-										<?php endforeach; ?>
-									</select>
-								</div>
-
-								<div class="d-grid gap-2 d-flex">
-									<button type="submit" class="btn btn-light btn-lg flex-grow-1"><?php echo $editingUserId !== null ? 'Perbarui User' : 'Simpan User'; ?></button>
-									<?php if ($editingUserId !== null): ?>
-										<a href="user.php" class="btn btn-outline-secondary btn-lg">Batal</a>
-									<?php endif; ?>
-								</div>
-							</form>
-						</div>
-					</div>
 				</div>
 			</section>
 		</div>
 	</main>
 
+	<div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content hero-glass">
+				<div class="modal-header border-0">
+					<h5 class="modal-title" id="userModalLabel">Tambah User</h5>
+					<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<form method="post" action="user.php">
+					<div class="modal-body">
+						<input type="hidden" name="editing_user_id" value="">
+
+						<div class="mb-3">
+							<label for="tambah_email" class="form-label">Email</label>
+							<input type="email" class="form-control form-control-lg" id="tambah_email" name="email" placeholder="name@example.com" required>
+						</div>
+
+						<div class="mb-3">
+							<label for="tambah_password" class="form-label">Password</label>
+							<div class="input-group input-group-lg">
+								<input type="password" class="form-control" id="tambah_password" name="password" placeholder="Password" required>
+								<button class="btn btn-outline-light toggle-password" type="button" data-target="tambah_password">Lihat</button>
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<label for="tambah_confirm_password" class="form-label">Ulangi Password</label>
+							<div class="input-group input-group-lg">
+								<input type="password" class="form-control" id="tambah_confirm_password" name="confirm_password" placeholder="Ulangi Password" required>
+								<button class="btn btn-outline-light toggle-password" type="button" data-target="tambah_confirm_password">Lihat</button>
+							</div>
+						</div>
+
+						<div class="mb-3">
+							<label for="tambah_prodi_id" class="form-label">Program Studi</label>
+							<select class="form-select form-select-lg" id="tambah_prodi_id" name="prodi_id" required>
+								<option value="">Pilih prodi</option>
+								<?php foreach ($prodiList as $prodi): ?>
+									<option value="<?php echo htmlspecialchars($prodi['prodi_id'], ENT_QUOTES, 'UTF-8'); ?>">
+										<?php echo htmlspecialchars($prodi['nama_prodi'], ENT_QUOTES, 'UTF-8'); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+						</div>
+					</div>
+					<div class="modal-footer border-0">
+						<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+						<button type="submit" class="btn btn-outline-light">Simpan User</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<?php foreach ($users as $user): ?>
+		<div class="modal fade" id="editUserModal<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" tabindex="-1" aria-labelledby="editUserModalLabel<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content hero-glass">
+					<div class="modal-header border-0">
+						<h5 class="modal-title" id="editUserModalLabel<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>">Edit User</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+					<form method="post" action="user.php">
+						<div class="modal-body">
+							<input type="hidden" name="editing_user_id" value="<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>">
+
+							<div class="mb-3">
+								<label for="edit_email_<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" class="form-label">Email</label>
+								<input type="email" class="form-control form-control-lg" id="edit_email_<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" name="email" value="<?php echo htmlspecialchars($user['email'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
+							</div>
+
+							<div class="mb-3">
+								<label for="edit_password_<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" class="form-label">Password</label>
+								<div class="input-group input-group-lg">
+									<input type="password" class="form-control" id="edit_password_<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" name="password" value="<?php echo htmlspecialchars($user['password'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
+									<button class="btn btn-outline-light toggle-password" type="button" data-target="edit_password_<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>">Lihat</button>
+								</div>
+							</div>
+
+							<div class="mb-3">
+								<label for="edit_confirm_password_<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" class="form-label">Ulangi Password</label>
+								<div class="input-group input-group-lg">
+									<input type="password" class="form-control" id="edit_confirm_password_<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" name="confirm_password" value="<?php echo htmlspecialchars($user['password'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
+									<button class="btn btn-outline-light toggle-password" type="button" data-target="edit_confirm_password_<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>">Lihat</button>
+								</div>
+							</div>
+
+							<div class="mb-3">
+								<label for="edit_prodi_id_<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" class="form-label">Program Studi</label>
+								<select class="form-select form-select-lg" id="edit_prodi_id_<?php echo htmlspecialchars($user['user_id'], ENT_QUOTES, 'UTF-8'); ?>" name="prodi_id" required>
+									<option value="">Pilih prodi</option>
+									<?php foreach ($prodiList as $prodi): ?>
+										<option value="<?php echo htmlspecialchars($prodi['prodi_id'], ENT_QUOTES, 'UTF-8'); ?>" <?php echo ((string)($user['prodi_id'] ?? '') === (string)$prodi['prodi_id']) ? 'selected' : ''; ?>>
+											<?php echo htmlspecialchars($prodi['nama_prodi'], ENT_QUOTES, 'UTF-8'); ?>
+										</option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+						</div>
+						<div class="modal-footer border-0">
+							<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+							<button type="submit" class="btn btn-outline-light">Perbarui User</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	<?php endforeach; ?>
+
 	<script src="js/bootstrap.bundle.min.js"></script>
+	<script>
+		document.querySelectorAll('.toggle-password').forEach(function (button) {
+			button.addEventListener('click', function () {
+				var target = document.getElementById(button.getAttribute('data-target'));
+				if (!target) {
+					return;
+				}
+				if (target.type === 'password') {
+					target.type = 'text';
+					button.textContent = 'Sembunyikan';
+				} else {
+					target.type = 'password';
+					button.textContent = 'Lihat';
+				}
+			});
+		});
+	</script>
 </body>
 </html>

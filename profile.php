@@ -62,66 +62,27 @@ if ($error === '') {
 
 	// Handle profile update
 	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-		$newEmail = trim($_POST['email'] ?? '');
 		$newPassword = $_POST['password'] ?? '';
-		$newProdiId = trim($_POST['prodi_id'] ?? '');
+		$confirmPassword = $_POST['confirm_password'] ?? '';
 
 		// Validate inputs
-		if ($newEmail === '') {
-			$error = 'Email wajib diisi.';
-		} elseif (strtolower($newEmail) !== strtolower($email)) {
-			// Check if new email already exists
-			$checkStmt = $conn->prepare('SELECT email FROM user_tbl WHERE LOWER(email) = LOWER(?) AND LOWER(email) != LOWER(?)');
-			if ($checkStmt) {
-				$checkStmt->bind_param('ss', $newEmail, $email);
-				$checkStmt->execute();
-				$checkResult = $checkStmt->get_result();
-				if ($checkResult->num_rows > 0) {
-					$error = 'Email sudah terdaftar. Gunakan email lain.';
-				}
-				$checkStmt->close();
-			}
+		if ($newPassword === '' && $confirmPassword === '') {
+			$error = 'Masukkan password baru untuk memperbarui profil.';
+		} elseif ($newPassword !== $confirmPassword) {
+			$error = 'Password dan ulangi password harus sama.';
 		}
 
 		// Update profile if no errors
 		if ($error === '') {
-			// Determine what to update
-			if ($newPassword !== '') {
-				// Update email and password
-				$updateStmt = $conn->prepare('UPDATE user_tbl SET email = ?, password = ?, prodi_id = ? WHERE email = ?');
-				if ($updateStmt) {
-					$updateStmt->bind_param('ssis', $newEmail, $newPassword, $newProdiId, $email);
-					if ($updateStmt->execute()) {
-						// Update session if email changed
-						if ($newEmail !== $email) {
-							$_SESSION['email'] = $newEmail;
-						}
-						$success = 'Profil berhasil diperbarui.';
-						$email = $newEmail;
-						$emailValue = $newEmail;
-					} else {
-						$error = 'Gagal memperbarui profil.';
-					}
-					$updateStmt->close();
+			$updateStmt = $conn->prepare('UPDATE user_tbl SET password = ? WHERE email = ?');
+			if ($updateStmt) {
+				$updateStmt->bind_param('ss', $newPassword, $email);
+				if ($updateStmt->execute()) {
+					$success = 'Password berhasil diperbarui.';
+				} else {
+					$error = 'Gagal memperbarui profil.';
 				}
-			} else {
-				// Update only email and prodi (keep password unchanged)
-				$updateStmt = $conn->prepare('UPDATE user_tbl SET email = ?, prodi_id = ? WHERE email = ?');
-				if ($updateStmt) {
-					$updateStmt->bind_param('sis', $newEmail, $newProdiId, $email);
-					if ($updateStmt->execute()) {
-						// Update session if email changed
-						if ($newEmail !== $email) {
-							$_SESSION['email'] = $newEmail;
-						}
-						$success = 'Profil berhasil diperbarui.';
-						$email = $newEmail;
-						$emailValue = $newEmail;
-					} else {
-						$error = 'Gagal memperbarui profil.';
-					}
-					$updateStmt->close();
-				}
+				$updateStmt->close();
 			}
 		}
 	}
@@ -260,7 +221,7 @@ if ($error === '') {
 			</aside>
 
 			<section class="col-12 col-md-9">
-				<div class="row g-4">
+				<div class="row">
 					<div class="col-12">
 						<div class="hero-glass profile-header">
 							<div class="d-flex align-items-start">
@@ -294,27 +255,33 @@ if ($error === '') {
 
 							<form method="post" action="profile.php">
 								<div class="mb-4">
-									<label for="email" class="form-label">Email</label>
-									<input type="email" class="form-control form-control-lg" id="email" name="email" value="<?php echo htmlspecialchars($emailValue, ENT_QUOTES, 'UTF-8'); ?>" placeholder="name@example.com" required>
-									<small class="text-secondary">Gunakan email unik untuk akun Anda</small>
+									<label class="form-label d-block">Email</label>
+									<p class="mb-0 fs-5"><?php echo htmlspecialchars($emailValue, ENT_QUOTES, 'UTF-8'); ?></p>
+									<small class="text-secondary">Email tidak dapat diubah dari halaman ini</small>
 								</div>
 
 								<div class="mb-4">
 									<label for="password" class="form-label">Password</label>
-									<input type="password" class="form-control form-control-lg" id="password" name="password" placeholder="Masukkan password baru">
+									<div class="input-group input-group-lg">
+										<input type="password" class="form-control" id="password" name="password" placeholder="Masukkan password baru" value="<?php echo htmlspecialchars($passwordValue, ENT_QUOTES, 'UTF-8'); ?>">
+										<button class="btn btn-outline-light toggle-password" type="button" data-target="password">Lihat</button>
+									</div>
 									<small class="text-secondary">Masukkan password baru untuk mengubah password saat ini</small>
 								</div>
 
 								<div class="mb-4">
-									<label for="prodi_id" class="form-label">Program Studi</label>
-									<select class="form-select form-select-lg" id="prodi_id" name="prodi_id" required>
-										<option value="">Pilih prodi</option>
-										<?php foreach ($prodiList as $prodi): ?>
-											<option value="<?php echo htmlspecialchars($prodi['prodi_id'], ENT_QUOTES, 'UTF-8'); ?>" <?php echo ((string)$selectedProdiId === (string)$prodi['prodi_id']) ? 'selected' : ''; ?>>
-												<?php echo htmlspecialchars($prodi['nama_prodi'], ENT_QUOTES, 'UTF-8'); ?>
-											</option>
-										<?php endforeach; ?>
-									</select>
+									<label for="confirm_password" class="form-label">Ulangi Password</label>
+									<div class="input-group input-group-lg">
+										<input type="password" class="form-control" id="confirm_password" name="confirm_password" placeholder="Ulangi password baru" value="<?php echo htmlspecialchars($passwordValue, ENT_QUOTES, 'UTF-8'); ?>">
+										<button class="btn btn-outline-light toggle-password" type="button" data-target="confirm_password">Lihat</button>
+									</div>
+									<small class="text-secondary">Ulangi password baru untuk konfirmasi</small>
+								</div>
+
+								<div class="mb-4">
+									<label class="form-label d-block">Program Studi</label>
+									<p class="mb-0 fs-5"><?php echo htmlspecialchars($prodiName, ENT_QUOTES, 'UTF-8'); ?></p>
+									<small class="text-secondary">Program studi tidak dapat diubah dari halaman ini</small>
 								</div>
 
 								<div class="d-flex gap-2">
@@ -348,5 +315,22 @@ if ($error === '') {
 	</main>
 
 	<script src="js/bootstrap.bundle.min.js"></script>
+	<script>
+		document.querySelectorAll('.toggle-password').forEach(function (button) {
+			button.addEventListener('click', function () {
+				var target = document.getElementById(button.getAttribute('data-target'));
+				if (!target) {
+					return;
+				}
+				if (target.type === 'password') {
+					target.type = 'text';
+					button.textContent = 'Sembunyikan';
+				} else {
+					target.type = 'password';
+					button.textContent = 'Lihat';
+				}
+			});
+		});
+	</script>
 </body>
 </html>

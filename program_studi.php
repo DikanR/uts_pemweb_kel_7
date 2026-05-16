@@ -24,7 +24,6 @@ if (isset($_GET['success'])) {
 }
 
 $namaProdiValue = '';
-$editingProdiId = null;
 
 $conn = new mysqli($dbHost, $dbUser, $dbPassword, $dbName);
 
@@ -37,36 +36,34 @@ $prodiList = [];
 if ($error === '') {
 	if (isset($_GET['delete'])) {
 		$deleteId = intval($_GET['delete']);
-		$stmt = $conn->prepare('DELETE FROM prodi_tbl WHERE prodi_id = ?');
-		if ($stmt) {
-			$stmt->bind_param('i', $deleteId);
-			$stmt->execute();
-			$stmt->close();
-			$conn->close();
-			header('Location: program_studi.php?deleted=1');
-			exit;
-		}
-	}
+		$checkUsageStmt = $conn->prepare('SELECT user_id FROM user_tbl WHERE prodi_id = ? LIMIT 1');
+		if ($checkUsageStmt) {
+			$checkUsageStmt->bind_param('i', $deleteId);
+			$checkUsageStmt->execute();
+			$usageResult = $checkUsageStmt->get_result();
 
-	if (isset($_GET['edit'])) {
-		$editId = intval($_GET['edit']);
-		$stmt = $conn->prepare('SELECT prodi_id, nama_prodi FROM prodi_tbl WHERE prodi_id = ?');
-		if ($stmt) {
-			$stmt->bind_param('i', $editId);
-			$stmt->execute();
-			$result = $stmt->get_result();
-			if ($row = $result->fetch_assoc()) {
-				$editingProdiId = $row['prodi_id'];
-				$namaProdiValue = $row['nama_prodi'];
+			if ($usageResult && $usageResult->num_rows > 0) {
+				$error = 'Program studi tidak dapat dihapus karena masih digunakan oleh data user.';
+			} else {
+				$stmt = $conn->prepare('DELETE FROM prodi_tbl WHERE prodi_id = ?');
+				if ($stmt) {
+					$stmt->bind_param('i', $deleteId);
+					$stmt->execute();
+					$stmt->close();
+					$conn->close();
+					header('Location: program_studi.php?deleted=1');
+					exit;
+				}
 			}
-			$stmt->close();
+
+			$checkUsageStmt->close();
 		}
 	}
 
 	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		$namaProdiValue = trim($_POST['nama_prodi'] ?? '');
 		$isEditMode = isset($_POST['editing_prodi_id']) && $_POST['editing_prodi_id'] !== '';
-		$editingProdiId = intval($_POST['editing_prodi_id'] ?? 0);
+		$editingProdiId = $isEditMode ? intval($_POST['editing_prodi_id']) : 0;
 
 		if ($namaProdiValue === '') {
 			$error = 'Nama program studi wajib diisi.';
@@ -133,12 +130,7 @@ if ($error === '') {
 		}
 	}
 
-	if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-		$editingProdiId = null;
-		$namaProdiValue = '';
-	}
-
-	$prodiResult = $conn->query('SELECT prodi_id, nama_prodi FROM prodi_tbl ORDER BY prodi_id ASC');
+	$prodiResult = $conn->query('SELECT p.prodi_id, p.nama_prodi, COUNT(u.user_id) AS user_count FROM prodi_tbl p LEFT JOIN user_tbl u ON u.prodi_id = p.prodi_id GROUP BY p.prodi_id, p.nama_prodi ORDER BY p.prodi_id ASC');
 	if ($prodiResult) {
 		while ($row = $prodiResult->fetch_assoc()) {
 			$prodiList[] = $row;
@@ -234,6 +226,10 @@ if ($error === '') {
 			background: rgba(255,255,255,0.03);
 			border-radius: 0.5rem;
 		}
+
+		.modal-content.hero-glass {
+			background: rgba(18, 14, 36, 0.92);
+		}
 	</style>
 </head>
 <body>
@@ -264,14 +260,17 @@ if ($error === '') {
 
 			<section class="col-12 col-md-9">
 				<div class="row g-4">
-					<div class="col-12 col-lg-7">
+					<div class="col-12">
 						<div class="card hero-glass p-4 h-100">
 							<div class="d-flex justify-content-between align-items-center mb-3">
 								<div>
 									<h4 class="mb-1">Data Program Studi</h4>
 									<small class="text-secondary">Daftar program studi dari database</small>
 								</div>
-								<div class="text-secondary small"><?php echo count($prodiList); ?> data</div>
+								<div class="d-flex align-items-center gap-2">
+									<div class="text-secondary small"><?php echo count($prodiList); ?> data</div>
+									<button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#tambahProdiModal">Tambah Prodi</button>
+								</div>
 							</div>
 
 							<?php if ($success !== ''): ?>
@@ -292,6 +291,7 @@ if ($error === '') {
 										<tr>
 											<th>ID Prodi</th>
 											<th>Nama Prodi</th>
+											<th class="text-center">Jumlah User</th>
 											<th class="text-center">Aksi</th>
 										</tr>
 									</thead>
@@ -301,19 +301,24 @@ if ($error === '') {
 												<tr>
 													<td><?php echo htmlspecialchars($prodi['prodi_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?></td>
 													<td>
-														<a href="program_studi.php?edit=<?php echo htmlspecialchars($prodi['prodi_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" class="text-light text-decoration-none" style="cursor: pointer;">
+														<button type="button" class="btn btn-link text-light text-decoration-none p-0" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#editProdiModal<?php echo htmlspecialchars($prodi['prodi_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">
 															<?php echo htmlspecialchars($prodi['nama_prodi'] ?? '', ENT_QUOTES, 'UTF-8'); ?>
-														</a>
+														</button>
 													</td>
+													<td class="text-center"><?php echo htmlspecialchars((string)($prodi['user_count'] ?? '0'), ENT_QUOTES, 'UTF-8'); ?></td>
 													<td class="text-center">
-														<a href="program_studi.php?edit=<?php echo htmlspecialchars($prodi['prodi_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-warning me-2">Edit</a>
-														<a href="program_studi.php?delete=<?php echo htmlspecialchars($prodi['prodi_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus program studi ini?');">Hapus</a>
+														<button type="button" class="btn btn-sm btn-outline-warning me-2" data-bs-toggle="modal" data-bs-target="#editProdiModal<?php echo htmlspecialchars($prodi['prodi_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?>">Edit</button>
+														<?php if ((int)($prodi['user_count'] ?? 0) > 0): ?>
+															<button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Program studi ini masih digunakan oleh data user">Tidak Bisa Dihapus</button>
+														<?php else: ?>
+															<a href="program_studi.php?delete=<?php echo htmlspecialchars($prodi['prodi_id'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Apakah Anda yakin ingin menghapus program studi ini?');">Hapus</a>
+														<?php endif; ?>
 													</td>
 												</tr>
 											<?php endforeach; ?>
 										<?php else: ?>
 											<tr>
-												<td colspan="3" class="text-center text-secondary py-4">Belum ada data program studi.</td>
+												<td colspan="4" class="text-center text-secondary py-4">Belum ada data program studi.</td>
 											</tr>
 										<?php endif; ?>
 									</tbody>
@@ -321,35 +326,60 @@ if ($error === '') {
 							</div>
 						</div>
 					</div>
-
-					<div class="col-12 col-lg-5">
-						<div class="card hero-glass p-4 h-100">
-							<h4 class="mb-1"><?php echo $editingProdiId !== null ? 'Edit Program Studi' : 'Tambah Program Studi'; ?></h4>
-							<small class="text-secondary d-block mb-4"><?php echo $editingProdiId !== null ? 'Update data program studi' : 'Isi nama program studi baru'; ?></small>
-
-							<form method="post" action="program_studi.php">
-								<?php if ($editingProdiId !== null): ?>
-									<input type="hidden" name="editing_prodi_id" value="<?php echo htmlspecialchars($editingProdiId, ENT_QUOTES, 'UTF-8'); ?>">
-								<?php endif; ?>
-
-								<div class="mb-4">
-									<label for="nama_prodi" class="form-label">Nama Prodi</label>
-									<input type="text" class="form-control form-control-lg" id="nama_prodi" name="nama_prodi" value="<?php echo htmlspecialchars($namaProdiValue, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Contoh: Statistika" required>
-								</div>
-
-								<div class="d-grid gap-2 d-flex">
-									<button type="submit" class="btn btn-light btn-lg flex-grow-1"><?php echo $editingProdiId !== null ? 'Perbarui Prodi' : 'Simpan Prodi'; ?></button>
-									<?php if ($editingProdiId !== null): ?>
-										<a href="program_studi.php" class="btn btn-outline-secondary btn-lg">Batal</a>
-									<?php endif; ?>
-								</div>
-							</form>
-						</div>
-					</div>
 				</div>
 			</section>
 		</div>
 	</main>
+
+	<div class="modal fade" id="tambahProdiModal" tabindex="-1" aria-labelledby="tambahProdiModalLabel" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content hero-glass">
+				<div class="modal-header border-0">
+					<h5 class="modal-title" id="tambahProdiModalLabel">Tambah Program Studi</h5>
+					<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+				</div>
+				<form method="post" action="program_studi.php">
+					<div class="modal-body">
+						<input type="hidden" name="editing_prodi_id" value="">
+						<div class="mb-3">
+							<label for="tambah_nama_prodi" class="form-label">Nama Prodi</label>
+							<input type="text" class="form-control form-control-lg" id="tambah_nama_prodi" name="nama_prodi" placeholder="Contoh: Statistika" required>
+						</div>
+					</div>
+					<div class="modal-footer border-0">
+						<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+						<button type="submit" class="btn btn-outline-light">Simpan Prodi</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<?php foreach ($prodiList as $prodi): ?>
+		<div class="modal fade" id="editProdiModal<?php echo htmlspecialchars($prodi['prodi_id'], ENT_QUOTES, 'UTF-8'); ?>" tabindex="-1" aria-labelledby="editProdiModalLabel<?php echo htmlspecialchars($prodi['prodi_id'], ENT_QUOTES, 'UTF-8'); ?>" aria-hidden="true">
+			<div class="modal-dialog modal-dialog-centered">
+				<div class="modal-content hero-glass">
+					<div class="modal-header border-0">
+						<h5 class="modal-title" id="editProdiModalLabel<?php echo htmlspecialchars($prodi['prodi_id'], ENT_QUOTES, 'UTF-8'); ?>">Edit Program Studi</h5>
+						<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+					<form method="post" action="program_studi.php">
+						<div class="modal-body">
+							<input type="hidden" name="editing_prodi_id" value="<?php echo htmlspecialchars($prodi['prodi_id'], ENT_QUOTES, 'UTF-8'); ?>">
+							<div class="mb-3">
+								<label for="edit_nama_prodi_<?php echo htmlspecialchars($prodi['prodi_id'], ENT_QUOTES, 'UTF-8'); ?>" class="form-label">Nama Prodi</label>
+								<input type="text" class="form-control form-control-lg" id="edit_nama_prodi_<?php echo htmlspecialchars($prodi['prodi_id'], ENT_QUOTES, 'UTF-8'); ?>" name="nama_prodi" value="<?php echo htmlspecialchars($prodi['nama_prodi'] ?? '', ENT_QUOTES, 'UTF-8'); ?>" required>
+							</div>
+						</div>
+						<div class="modal-footer border-0">
+							<button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
+							<button type="submit" class="btn btn-outline-light">Perbarui Prodi</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+	<?php endforeach; ?>
 
 	<script src="js/bootstrap.bundle.min.js"></script>
 </body>
