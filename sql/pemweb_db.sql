@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 09, 2026 at 01:46 AM
+-- Generation Time: May 16, 2026 at 04:54 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -41,7 +41,8 @@ INSERT INTO `prodi_tbl` (`prodi_id`, `nama_prodi`) VALUES
 (2, 'Fisika'),
 (3, 'Matematika'),
 (4, 'Biologi'),
-(5, 'Statistika');
+(5, 'Statistika'),
+(13, 'Teknik');
 
 -- --------------------------------------------------------
 
@@ -72,7 +73,7 @@ INSERT INTO `user_tbl` (`user_id`, `email`, `password`, `prodi_id`) VALUES
 (19, 'hendra.wijaya@gmail.com', '12345678', 3),
 (20, 'intan.permata@gmail.com', '12345678', 4),
 (21, 'joko.susilo@gmail.com', '12345678', 5),
-(22, 'adwadwa@dwad.cs', '12345678', 4);
+(25, 'dwa@dwadwas.cs', '12345678', 1);
 
 --
 -- Indexes for dumped tables
@@ -99,13 +100,13 @@ ALTER TABLE `user_tbl`
 -- AUTO_INCREMENT for table `prodi_tbl`
 --
 ALTER TABLE `prodi_tbl`
-  MODIFY `prodi_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `prodi_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 
 --
 -- AUTO_INCREMENT for table `user_tbl`
 --
 ALTER TABLE `user_tbl`
-  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
+  MODIFY `user_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
